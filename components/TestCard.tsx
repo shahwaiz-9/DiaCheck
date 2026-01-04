@@ -1,14 +1,16 @@
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { DiabetesTest } from "@/types/user";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React from "react";
-import { Text, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 
 interface TestCardProps {
+  id: string;
   test: DiabetesTest;
 }
 
-const TestCard: React.FC<TestCardProps> = ({ test }) => {
+const TestCard: React.FC<TestCardProps> = ({ id, test }) => {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
@@ -68,7 +70,26 @@ const TestCard: React.FC<TestCardProps> = ({ test }) => {
   );
 
   return (
-    <View
+    <TouchableOpacity
+      onPress={() =>
+        router.push({
+          pathname: "/patient/result",
+          params: {
+            id: id,
+            result: test.result,
+            currentState: test.currentState,
+            recommendation: test.recommendation,
+            pregnancies: test.pregnancies,
+            glucose: test.glucose,
+            bloodPressure: test.bloodPressure,
+            skinThickness: test.skinThickness,
+            insulin: test.insulin,
+            bmi: test.bmi,
+            diabetesPedigreeFunction: test.diabetesPedigreeFunction,
+            age: test.age,
+          },
+        })
+      }
       style={{
         backgroundColor: isDark ? "#1C1C1E" : "#FFFFFF",
         borderRadius: 20,
@@ -171,8 +192,9 @@ const TestCard: React.FC<TestCardProps> = ({ test }) => {
           label="Diabetes Pedigree"
           value={test.diabetesPedigreeFunction}
         />
+        <DetailItem label="Age" value={test.age} />
       </View>
-    </View>
+    </TouchableOpacity>
   );
 };
 

@@ -1,7 +1,12 @@
+import { submitDiabetesPrediction } from "@/api/backend";
+import { constructPrompt } from "@/constants/prompt";
 import { useUser } from "@/context/UserContext";
+import { callGeminiAndParse } from "@/gemini/geminiService";
 import { useColorScheme } from "@/hooks/use-color-scheme";
+import { validateForm } from "@/utlis/safeValues";
 import { MaterialIcons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import LottieView from "lottie-react-native";
 import React, { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -13,6 +18,8 @@ import {
   View,
 } from "react-native";
 
+// MARK: - Props
+
 interface InputFieldProps {
   label: string;
   value: string;
@@ -21,6 +28,8 @@ interface InputFieldProps {
   keyboardType?: "numeric" | "decimal-pad" | "default";
   isDark: boolean;
 }
+
+// MARK: - Components
 
 const InputField: React.FC<InputFieldProps> = ({
   label,
@@ -84,12 +93,14 @@ const InputField: React.FC<InputFieldProps> = ({
 };
 
 export default function TestInputScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  // MARK: - Hooks
+  const { id, age } = useLocalSearchParams<{ id: string; age: string }>();
   const router = useRouter();
   const colorScheme = useColorScheme();
   const isDark = colorScheme === "dark";
 
-  // Form state for all DiabetesTest fields
+  // MARK: - Form State
+
   const [pregnancies, setPregnancies] = useState("");
   const [glucose, setGlucose] = useState("");
   const [bloodPressure, setBloodPressure] = useState("");
@@ -97,14 +108,18 @@ export default function TestInputScreen() {
   const [insulin, setInsulin] = useState("");
   const [bmi, setBmi] = useState("");
   const [diabetesPedigreeFunction, setDiabetesPedigreeFunction] = useState("");
+  const [loadingText, setLoadingText] = useState("");
 
   const { addTest } = useUser();
   const [loading, setLoading] = useState(false);
 
-  const handleProceed = async () => {
-    if (!id || typeof id !== "string") return;
+  // MARK: - Functions
 
-    setLoading(true);
+  const uploadToFirebase = async (
+    result: number,
+    currentState: string,
+    recommendation: string
+  ) => {
     try {
       await addTest(id, {
         pregnancies: Number(pregnancies),
@@ -114,11 +129,119 @@ export default function TestInputScreen() {
         insulin: Number(insulin),
         bmi: Number(bmi),
         diabetesPedigreeFunction: Number(diabetesPedigreeFunction),
-        result: 0, // Defaulting to 1 as per user request/placeholder
+        result: result === 0 || result === 1 ? result : 0,
+        age: Number(age),
+        currentState: currentState,
+        recommendation: recommendation,
       });
       router.back();
     } catch (error) {
       console.error("Failed to add test:", error);
+      throw error; // Re-throw to handle in caller
+    } finally {
+      // setLoading(false); // Handled in caller
+    }
+  };
+
+  const handleFormValidation = (formValues: any) => {
+    const errors = validateForm(formValues);
+
+    if (Object.keys(errors).length > 0) {
+      // Show the user which fields are invalid
+      console.log("Validation errors:", errors);
+      alert(
+        "Please fix the following fields:\n" +
+          Object.entries(errors)
+            .map(([key, msg]) => `${key}: ${msg}`)
+            .join("\n")
+      );
+      return false;
+    }
+    return true;
+  };
+
+  const handleProceed = async () => {
+    console.log("Proceeding...");
+    if (!id || typeof id !== "string") return;
+
+    const formValues = {
+      pregnancies,
+      glucose,
+      bloodPressure,
+      skinThickness,
+      insulin,
+      bmi,
+      diabetesPedigreeFunction,
+      age: age || "",
+      outcome: 0,
+    };
+    console.log(formValues);
+
+    // Form validation
+    const validationPayload = {
+      pregnancies,
+      glucose,
+      bloodPressure,
+      skinThickness,
+      insulin,
+      bmi,
+      diabetesPedigreeFunction,
+      age: age || "",
+    };
+
+    const isValid = handleFormValidation(validationPayload);
+    if (!isValid) return;
+
+    setLoading(true);
+
+    try {
+      setLoadingText("Predicting Results...");
+      const prediction = await submitDiabetesPrediction(formValues);
+      console.log("Prediction:", prediction);
+
+      formValues.outcome = prediction.prediction;
+
+      // Gemini reponse coming soon
+
+      const aiPrompt = constructPrompt(formValues);
+      console.log(aiPrompt);
+      setLoadingText("Getting AI Analysis...");
+      const aiResponse = await callGeminiAndParse(aiPrompt);
+      console.log("AI Analysis:", aiResponse);
+
+      if (!aiResponse?.CurrentState || !aiResponse?.Recomendation) {
+        alert("AI Analysis failed");
+        return;
+      }
+
+      setLoadingText("Saving Results...");
+
+      // Firebase upload
+      await uploadToFirebase(
+        prediction.prediction,
+        aiResponse.CurrentState,
+        aiResponse.Recomendation
+      );
+
+      router.push({
+        pathname: "/patient/result",
+        params: {
+          id,
+          result: prediction.prediction,
+          currentState: aiResponse.CurrentState,
+          recommendation: aiResponse.Recomendation,
+          pregnancies,
+          glucose,
+          bloodPressure,
+          skinThickness,
+          insulin,
+          bmi,
+          diabetesPedigreeFunction,
+          age,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to save results:", error);
     } finally {
       setLoading(false);
     }
@@ -126,6 +249,40 @@ export default function TestInputScreen() {
 
   const isFormValid =
     glucose.trim() !== "" && bloodPressure.trim() !== "" && bmi.trim() !== "";
+
+  // MARK: - EMPTY UI
+
+  if (loading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: isDark ? "#000000" : "#F2F2F7",
+        }}
+      >
+        <LottieView
+          source={require("../../assets/loading.json")}
+          autoPlay
+          loop
+          style={{ width: 150, height: 150 }}
+        />
+        <Text
+          style={{
+            marginTop: 10,
+            fontSize: 18,
+            fontFamily: "FunnelDisplay-Medium",
+            color: isDark ? "#FFFFFF" : "#1C1C1E",
+          }}
+        >
+          {loadingText}
+        </Text>
+      </View>
+    );
+  }
+
+  // MARK: - MAIN UI
 
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? "#000000" : "#F2F2F7" }}>

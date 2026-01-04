@@ -78,7 +78,11 @@ export default function RootLayout() {
                 name="patient/insight"
                 options={{ title: "Insight" }}
               />
-              <Stack.Screen name="results" options={{ title: "Test Result" }} />
+
+              <Stack.Screen
+                name="patient/result"
+                options={{ title: "Test Result" }}
+              />
             </Stack>
             <StatusBar style="auto" />
           </SafeAreaView>

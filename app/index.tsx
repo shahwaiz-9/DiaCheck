@@ -1,8 +1,8 @@
 import { useUser } from "@/context/UserContext";
 import { useRouter } from "expo-router";
+import LottieView from "lottie-react-native";
 import React, { useEffect } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
-
+import { Text, View } from "react-native";
 export default function AuthLoadingScreen() {
   const router = useRouter();
   const { refreshData } = useUser();
@@ -33,7 +33,11 @@ export default function AuthLoadingScreen() {
         backgroundColor: "#FFFFFF",
       }}
     >
-      <ActivityIndicator size="large" color="#D32F2F" />
+      <LottieView
+        style={{ width: 100, height: 100 }}
+        autoPlay
+        source={require("../assets/loading.json")}
+      />
       <Text style={{ marginTop: 20, fontSize: 16, color: "#666" }}>
         Setting up...
       </Text>

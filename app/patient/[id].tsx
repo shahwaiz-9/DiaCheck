@@ -2,9 +2,16 @@ import TestCard from "@/components/TestCard";
 import { useUser } from "@/context/UserContext";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React from "react";
-import { FlatList, Text, TouchableOpacity, View } from "react-native";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback } from "react";
+import {
+  BackHandler,
+  FlatList,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
 export default function PatientDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -14,10 +21,26 @@ export default function PatientDetails() {
   const { userData } = useUser();
   const patient = userData?.patients.find((p) => p.pid === id) || null;
 
-  // Use context data, no loading state needed if context is already loaded
-  // (though global loading might be relevant, we assume home loaded it)
+  // MARK: - SYSTEM DEFAULT PRESS
 
-  // Generate consistent avatar color based on name (same logic as PatientCard)
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        router.replace("/(tabs)");
+
+        return true; // Prevents the default back action
+      };
+
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        onBackPress
+      );
+
+      // Remove the listener when the screen is unfocused
+      return () => subscription.remove();
+    }, [])
+  );
+
   const getAvatarColor = (name: string) => {
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
@@ -194,7 +217,10 @@ export default function PatientDetails() {
               <TouchableOpacity
                 activeOpacity={0.8}
                 onPress={() =>
-                  router.push({ pathname: "/patient/insight", params: { id } })
+                  router.push({
+                    pathname: "/patient/insight",
+                    params: { id },
+                  })
                 }
                 style={{
                   flexDirection: "row",
@@ -332,7 +358,10 @@ export default function PatientDetails() {
             elevation: 6,
           }}
           onPress={() =>
-            router.push({ pathname: "/patient/testInput", params: { id } })
+            router.push({
+              pathname: "/patient/testInput",
+              params: { id, age: patient?.Age },
+            })
           }
         >
           <Ionicons name="add" size={30} color="#FFF" />

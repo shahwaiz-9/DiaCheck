@@ -56,8 +56,18 @@ const AddPatientSheet: React.FC<AddPatientSheetProps> = ({
 
   const handleSave = () => {
     if (!name || !age) {
+      alert("Please fill in all fields");
       return;
     }
+    if (Number(age) < 10 || Number(age) > 100) {
+      alert("Age must be between 10 and 100");
+      return;
+    }
+    if (phone.length !== 11 || !phone.startsWith("03")) {
+      alert("Phone number must be 11 digits and start with 03");
+      return;
+    }
+
     onAddPatient({ name, age, phone });
   };
 
@@ -236,7 +246,7 @@ const AddPatientSheet: React.FC<AddPatientSheetProps> = ({
                         opacity: loading ? 0.5 : 1,
                         fontFamily: "FunnelDisplay-Regular",
                       }}
-                      placeholder="(555) 123-4567"
+                      placeholder="xxxx-xxxxxxx"
                       placeholderTextColor={isDark ? "#545456" : "#C7C7CC"}
                       value={phone}
                       onChangeText={setPhone}

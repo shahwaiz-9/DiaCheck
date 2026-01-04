@@ -8,6 +8,7 @@ export interface DiabetesTest {
   insulin: number;
   bmi: number;
   diabetesPedigreeFunction: number;
+  age: number;
   result: 0 | 1; // 0 = No Diabetes, 1 = Diabetes
   testDate: string;
 }

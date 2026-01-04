@@ -1,53 +1,3 @@
-// const GEMINI_API_KEY = "AIzaSyCRr5x5jVd_xy1szIJOZtljrnPnwqZBgA4";
-
-// export async function callGemini(prompt: string): Promise<string> {
-//   try {
-//     const response = await fetch(
-//       `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
-//       {
-//         method: "POST",
-//         headers: {
-//           "Content-Type": "application/json",
-//         },
-//         body: JSON.stringify({
-//           contents: [
-//             {
-//               role: "user",
-//               parts: [{ text: prompt }],
-//             },
-//           ],
-//           generationConfig: {
-//             temperature: 0.4,
-//             maxOutputTokens: 1024,
-//           },
-//         }),
-//       }
-//     );
-
-//     const data = await response.json();
-
-//     // 🔍 LOG FULL RESPONSE FOR DEBUG
-//     console.log("Gemini raw response:", JSON.stringify(data, null, 2));
-
-//     // ❌ API-level error
-//     if (data.error) {
-//       throw new Error(data.error.message);
-//     }
-
-//     // ❌ No candidates returned
-//     if (!data.candidates || data.candidates.length === 0) {
-//       throw new Error(
-//         "Gemini returned no candidates (possibly blocked by safety)"
-//       );
-//     }
-
-//     return data.candidates[0].content.parts[0].text;
-//   } catch (error) {
-//     console.error("Gemini API error:", error);
-//     throw error;
-//   }
-// }
-
 import { GoogleGenAI } from "@google/genai";
 
 const ai = new GoogleGenAI({
@@ -55,11 +5,35 @@ const ai = new GoogleGenAI({
   apiVersion: "v1",
 });
 
-export async function callGemini(prompt: string): Promise<string | undefined> {
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-  });
-  console.log(response.text);
-  return response.text;
+type GeminiResponse = {
+  CurrentState: string;
+  Recomendation: string;
+};
+
+export async function callGeminiAndParse(
+  prompt: string
+): Promise<GeminiResponse | undefined> {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt,
+    });
+
+    const text = response.text;
+
+    if (!text) {
+      throw new Error("Gemini response is undefined");
+    }
+
+    // Clean up markdown block if present (e.g. ```json ... ```)
+    const cleanedText = text.replace(/```json\n?|\n?```/g, "").trim();
+
+    // Parse the JSON string returned by Gemini
+    const parsed: GeminiResponse = JSON.parse(cleanedText);
+
+    return parsed;
+  } catch (error) {
+    console.error("Failed to parse Gemini response:", error);
+    return undefined;
+  }
 }

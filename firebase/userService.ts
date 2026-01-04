@@ -5,8 +5,11 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
+  query,
   setDoc,
   Timestamp,
+  where,
 } from "firebase/firestore";
 import "react-native-get-random-values";
 import { v4 as uuidv4 } from "uuid";
@@ -97,14 +100,12 @@ export const UserService = {
         "[createNewUser] 🎉 Firestore document created successfully!"
       );
 
-      // 🏷️ Debug: Return data validation
       console.log(
         "[createNewUser] 📤 Returning newUser object:",
         JSON.stringify(newUser, null, 2)
       );
       return newUser;
     } catch (error) {
-      // 🏷️ Debug: Detailed Error Logging
       console.error("❌ [createNewUser] CRITICAL ERROR:");
       if (error instanceof Error) {
         console.error(`- Message: ${error.message}`);
@@ -122,7 +123,6 @@ export const UserService = {
       const userDoc = await getDoc(userDocRef);
 
       if (userDoc.exists()) {
-        // Fetch patients subcollection
         const patientsColRef = collection(db, "users", uid, "patients");
         const patientsSnapshot = await getDocs(patientsColRef);
 
@@ -153,9 +153,6 @@ export const UserService = {
     return null;
   },
 
-  /**
-   * Adds a new patient to the user's patient collection.
-   */
   addPatient: async (
     uid: string,
     patientData: Omit<Patient, "pid" | "tests">
@@ -169,7 +166,7 @@ export const UserService = {
 
     try {
       console.log("Heres");
-      // Add to 'patients' subcollection of the user
+
       await setDoc(doc(db, "users", uid, "patients", newPid), newPatient);
       console.log(`[addPatient] Added patient ${newPid} for user ${uid}`);
       return newPatient;
@@ -201,9 +198,6 @@ export const UserService = {
     }
   },
 
-  /**
-   * Adds a new diabetes test to a patient's record.
-   */
   addTest: async (
     uid: string,
     pid: string,
@@ -218,10 +212,6 @@ export const UserService = {
 
     try {
       const patientRef = doc(db, "users", uid, "patients", pid);
-
-      // We need to fetch the current patient data to append to the 'tests' array
-      // Firestore arrayUnion could be used if 'tests' is an array field
-      // but let's be safe and consistent with our data model
       const patientDoc = await getDoc(patientRef);
 
       if (patientDoc.exists()) {
@@ -248,9 +238,103 @@ export const UserService = {
       const userRef = doc(db, "users", uid);
       await setDoc(userRef, fields, { merge: true });
       console.log(`[updateUserFields] Updated fields for user ${uid}`);
+
+      if (fields.email) {
+        await UserService.saveEmailMapping(fields.email, uid);
+      }
     } catch (error) {
       console.error("[updateUserFields] Error updating user fields:", error);
       throw error;
+    }
+  },
+
+  saveEmailMapping: async (email: string, uid: string): Promise<void> => {
+    try {
+      // Use email as document ID
+      const emailDocRef = doc(db, "userInfo", email);
+      await setDoc(emailDocRef, { uid });
+      console.log(`[saveEmailMapping] Mapped email ${email} to uid ${uid}`);
+    } catch (error) {
+      console.error("[saveEmailMapping] Error saving email mapping:", error);
+      // Don't throw here to avoid blocking main profile update, but log it
+    }
+  },
+
+  getUserByEmail: async (email: string): Promise<string | null> => {
+    try {
+      const emailDocRef = doc(db, "userInfo", email);
+      const emailDoc = await getDoc(emailDocRef);
+      if (emailDoc.exists()) {
+        return emailDoc.data().uid;
+      }
+      return null;
+    } catch (error) {
+      console.error("[getUserByEmail] Error fetching user by email:", error);
+      return null;
+    }
+  },
+
+  mergeAndSwitchUser: async (
+    currentUid: string,
+    targetUid: string
+  ): Promise<void> => {
+    console.log(
+      `[mergeAndSwitchUser] Merging ${currentUid} INTO ${targetUid} and switching`
+    );
+    try {
+      // 1. Move Patients from Current to Target
+      const currentPatientsRef = collection(
+        db,
+        "users",
+        currentUid,
+        "patients"
+      );
+      const snapshot = await getDocs(currentPatientsRef);
+
+      const movePromises = snapshot.docs.map(async (patientDoc) => {
+        const patientData = patientDoc.data() as Patient;
+        const targetPatientRef = doc(
+          db,
+          "users",
+          targetUid,
+          "patients",
+          patientDoc.id
+        );
+        await setDoc(targetPatientRef, patientData);
+      });
+
+      await Promise.all(movePromises);
+      console.log(`[mergeAndSwitchUser] Moved ${snapshot.size} patients`);
+
+      const deletePromises = snapshot.docs.map((d) =>
+        setDoc(doc(db, "users", currentUid, "patients", d.id), {})
+      );
+      await AsyncStorage.setItem(USER_ID_KEY, targetUid);
+      console.log(
+        `[mergeAndSwitchUser] Switched object storage to ${targetUid}`
+      );
+    } catch (error) {
+      console.error("[mergeAndSwitchUser] Error merging users:", error);
+      throw error;
+    }
+  },
+
+  checkEmailExists: async (email: string): Promise<boolean> => {
+    try {
+      const usersRef = collection(db, "userInfo");
+      const q = query(
+        usersRef,
+        where("email", "==", email.toLowerCase().trim()),
+        limit(1)
+      );
+      const querySnapshot = await getDocs(q);
+      console.log(querySnapshot.empty);
+      const res = querySnapshot.empty;
+      console.log(res);
+      return res;
+    } catch (error) {
+      console.error("Error checking email existence: ", error);
+      return false;
     }
   },
 };

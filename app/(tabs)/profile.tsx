@@ -1,8 +1,9 @@
 import { useUser } from "@/context/UserContext";
 import { UserService } from "@/firebase/userService";
-import { callGemini } from "@/gemini/geminiService";
+
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Ionicons } from "@expo/vector-icons";
+import { Entypo, Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import {
   Image,
@@ -20,13 +21,13 @@ export default function ProfileTabScreen() {
   const isDark = colorScheme === "dark";
 
   const { userData, setUserData } = useUser();
+  const router = useRouter();
 
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [focusedField, setFocusedField] = React.useState<
     "name" | "email" | null
-  >(null); // <-- separate focus
-  // Removed local user state
+  >(null);
   const [avatarColor, setAvatarColor] = React.useState("#000");
   const [initials, setInitials] = React.useState("");
   const [buttonText, setButtonText] = React.useState("");
@@ -75,12 +76,24 @@ export default function ProfileTabScreen() {
   const handleUpdateProfile = async () => {
     if (userData?.name === name && userData?.email === email) {
       alert("No changes made");
+      setButtonText("edit profile");
       return;
     }
+    setButtonText("Saving...");
     try {
       if (userData) {
+        if (email != userData.email) {
+          const res = await UserService.checkEmailExists(email);
+          if (res) {
+            setName(userData.name ? userData.name : "");
+            setEmail(userData.email ? userData.email : "");
+            setButtonText("edit profile");
+            return;
+          }
+        }
+
         await UserService.updateUserFields(userData.uid, { name, email });
-        // Update context immediately
+
         setUserData({ ...userData, name, email });
         setButtonText("edit profile");
         alert("Profile updated successfully");
@@ -94,18 +107,10 @@ export default function ProfileTabScreen() {
   const handleProceed = () => {
     if (buttonText === "Add profile" || buttonText === "edit profile") {
       setButtonText("Update profile");
+      setFocusedField("name");
     } else {
-      setButtonText("Saving...");
       handleUpdateProfile();
     }
-  };
-
-  // Testing Gemini
-
-  const handleGenerate = async () => {
-    console.log("Generating...");
-    const response = await callGemini("Say Hello only");
-    console.log(response);
   };
 
   return (
@@ -204,7 +209,7 @@ export default function ProfileTabScreen() {
               <Text
                 style={{
                   fontFamily: "FunnelDisplay-Bold",
-                  fontSize: 24,
+                  fontSize: 18,
                   color: isDark ? "#E0E0E0" : "#000",
                 }}
               >
@@ -214,16 +219,16 @@ export default function ProfileTabScreen() {
                 style={{
                   alignItems: "center",
                   justifyContent: "center",
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
+                  width: 30,
+                  height: 30,
+                  borderRadius: 15,
                   borderColor: isDark ? "#E0E0E0" : "#000",
                   borderWidth: 1,
                 }}
               >
                 <Ionicons
                   name="person-outline"
-                  size={24}
+                  size={18}
                   color={isDark ? "#E0E0E0" : "#000"}
                 />
               </View>
@@ -233,8 +238,8 @@ export default function ProfileTabScreen() {
             <View>
               <Text
                 style={{
-                  fontFamily: "FunnelDisplay-Regular",
-                  fontSize: 18,
+                  fontFamily: "FunnelDisplay-SemiBold",
+                  fontSize: 14,
                   color: isDark ? "#E0E0E0" : "#000",
                   marginBottom: 6,
                 }}
@@ -260,7 +265,7 @@ export default function ProfileTabScreen() {
               >
                 <TextInput
                   style={{
-                    fontSize: 16,
+                    fontSize: 14,
                     fontFamily: "FunnelDisplay-Regular",
                     color: isDark ? "#FFFFFF" : "#1C1C1E",
                     minHeight: 20,
@@ -285,8 +290,8 @@ export default function ProfileTabScreen() {
             <View>
               <Text
                 style={{
-                  fontFamily: "FunnelDisplay-Regular",
-                  fontSize: 18,
+                  fontFamily: "FunnelDisplay-SemiBold",
+                  fontSize: 14,
                   color: isDark ? "#E0E0E0" : "#000",
                   marginBottom: 6,
                   marginTop: 12,
@@ -313,7 +318,7 @@ export default function ProfileTabScreen() {
               >
                 <TextInput
                   style={{
-                    fontSize: 16,
+                    fontSize: 14,
                     fontFamily: "FunnelDisplay-Regular",
                     color: isDark ? "#FFFFFF" : "#1C1C1E",
                     minHeight: 20,
@@ -356,6 +361,73 @@ export default function ProfileTabScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Restore Data Card */}
+          <TouchableOpacity
+            onPress={() => {
+              router.push("/restore");
+            }}
+            style={{
+              backgroundColor: isDark ? "#1C1C1E" : "#FFFFFF",
+              borderRadius: 20,
+              padding: 16,
+              marginHorizontal: 12,
+              marginBottom: 30,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: isDark ? 0.3 : 0.08,
+              shadowRadius: 8,
+              borderWidth: 1,
+              borderColor: isDark ? "#2C2C2E" : "#F2F2F7",
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 15,
+            }}
+          >
+            <View
+              style={{
+                alignItems: "center",
+                justifyContent: "center",
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: isDark ? "#2C2C2E" : "#F2F2F7",
+              }}
+            >
+              <Entypo
+                name="cycle"
+                size={22}
+                color={isDark ? "#E0E0E0" : "#666363ff"}
+              />
+            </View>
+            <View>
+              <Text
+                style={{
+                  fontFamily: "FunnelDisplay-Bold",
+                  fontSize: 16,
+                  color: isDark ? "#8E8E93" : "#000",
+                }}
+              >
+                Restore Data
+              </Text>
+              <Text
+                style={{
+                  fontFamily: "FunnelDisplay-Regular",
+                  fontSize: 12,
+                  color: isDark ? "#A0A0A0" : "#808080",
+                  marginTop: 2,
+                }}
+              >
+                Recover account from email
+              </Text>
+            </View>
+            <View style={{ flex: 1 }} />
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={isDark ? "#636366" : "#C7C7CC"}
+            />
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

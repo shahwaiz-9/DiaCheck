@@ -1,8 +1,14 @@
+// ... (Your imports and InsightChart component stay the same)
 import { useUser } from "@/context/UserContext";
+
 import { useColorScheme } from "@/hooks/use-color-scheme";
+
 import { MaterialIcons } from "@expo/vector-icons";
+
 import { useLocalSearchParams, useRouter } from "expo-router";
+
 import React, { useMemo, useState } from "react";
+
 import {
   Dimensions,
   Platform,
@@ -11,24 +17,34 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
 import { BarChart, LineChart } from "react-native-gifted-charts";
 
 const { width } = Dimensions.get("window");
 
 // Reusable Chart Component
+
 interface InsightChartProps {
   label: string;
+
   data: { value: number; label?: string; dataPointText?: string }[];
+
   color: string;
+
   isDark: boolean;
+
   unit: string;
 }
 
 const InsightChart: React.FC<InsightChartProps> = ({
   label,
+
   data,
+
   color,
+
   isDark,
+
   unit,
 }) => {
   const [chartType, setChartType] = useState<"Line" | "Bar">("Line");
@@ -37,18 +53,31 @@ const InsightChart: React.FC<InsightChartProps> = ({
 
   const chartConfig = {
     color,
+
     thickness: 3,
+
     startFillColor: color,
+
     endFillColor: color,
+
     startOpacity: 0.3,
+
     endOpacity: 0.0,
+
     backgroundColor: "transparent",
+
     rulesColor: isDark ? "#333" : "#EEE",
+
     xAxisColor: isDark ? "#555" : "#CCC",
+
     yAxisColor: isDark ? "#555" : "#CCC",
+
     yAxisTextStyle: { color: isDark ? "#AAA" : "#666", fontSize: 10 },
+
     xAxisLabelTextStyle: { color: isDark ? "#AAA" : "#666", fontSize: 10 },
+
     dataPointsColor: color,
+
     textColor: isDark ? "#FFF" : "#000",
   };
 
@@ -56,30 +85,45 @@ const InsightChart: React.FC<InsightChartProps> = ({
     <View
       style={{
         backgroundColor: isDark ? "#1C1C1E" : "#FFFFFF",
+
         borderRadius: 20,
+
         padding: 16,
+
         marginBottom: 20,
+
         shadowColor: "#000",
+
         shadowOffset: { width: 0, height: 4 },
+
         shadowOpacity: isDark ? 0.3 : 0.08,
+
         shadowRadius: 8,
+
         elevation: 4,
+
         borderWidth: 1,
+
         borderColor: isDark ? "#2C2C2E" : "#F2F2F7",
       }}
     >
       <View
         style={{
           flexDirection: "row",
+
           justifyContent: "space-between",
+
           alignItems: "center",
+
           marginBottom: 16,
         }}
       >
         <Text
           style={{
             fontSize: 18,
+
             fontFamily: "FunnelDisplay-SemiBold",
+
             color: isDark ? "#E0E0E0" : "#1C1C1E",
           }}
         >
@@ -87,7 +131,9 @@ const InsightChart: React.FC<InsightChartProps> = ({
           <Text
             style={{
               fontSize: 14,
+
               fontFamily: "FunnelDisplay-Regular",
+
               color: isDark ? "#8E8E93" : "#8E8E93",
             }}
           >
@@ -144,12 +190,17 @@ const InsightChart: React.FC<InsightChartProps> = ({
       </View>
 
       {/* Switcher Logic */}
+
       <View
         style={{
           flexDirection: "row",
+
           backgroundColor: isDark ? "#2C2C2E" : "#F2F2F7",
+
           borderRadius: 14,
+
           padding: 4,
+
           marginTop: 16,
         }}
       >
@@ -157,9 +208,13 @@ const InsightChart: React.FC<InsightChartProps> = ({
           onPress={() => setChartType("Line")}
           style={{
             flex: 1,
+
             paddingVertical: 8,
+
             alignItems: "center",
+
             borderRadius: 14,
+
             backgroundColor:
               chartType === "Line" ? "rgba(239, 68, 68, 0.15)" : "transparent",
           }}
@@ -167,7 +222,9 @@ const InsightChart: React.FC<InsightChartProps> = ({
           <Text
             style={{
               fontSize: 14,
+
               fontFamily: "FunnelDisplay-SemiBold",
+
               color:
                 chartType === "Line"
                   ? "#EF4444"
@@ -179,13 +236,18 @@ const InsightChart: React.FC<InsightChartProps> = ({
             Line
           </Text>
         </TouchableOpacity>
+
         <TouchableOpacity
           onPress={() => setChartType("Bar")}
           style={{
             flex: 1,
+
             paddingVertical: 8,
+
             alignItems: "center",
+
             borderRadius: 14,
+
             backgroundColor:
               chartType === "Bar" ? "rgba(239, 68, 68, 0.15)" : "transparent",
           }}
@@ -193,7 +255,9 @@ const InsightChart: React.FC<InsightChartProps> = ({
           <Text
             style={{
               fontSize: 14,
+
               fontFamily: "FunnelDisplay-SemiBold",
+
               color:
                 chartType === "Bar"
                   ? "#EF4444"
@@ -209,7 +273,6 @@ const InsightChart: React.FC<InsightChartProps> = ({
     </View>
   );
 };
-
 export default function InsightScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -219,16 +282,16 @@ export default function InsightScreen() {
 
   const patient = userData?.patients.find((p) => p.pid === id);
 
-  // Process data: Get last 6 tests, sort by date ascending
   const processedData = useMemo(() => {
-    if (!patient?.tests) return {};
+    if (!patient?.tests)
+      return { glucose: [], bloodPressure: [], bmi: [], insulin: [] };
 
     const sortedTests = [...patient.tests]
       .sort(
         (a, b) =>
           new Date(a.testDate).getTime() - new Date(b.testDate).getTime()
       )
-      .slice(-6); // Take last 6
+      .slice(-6);
 
     const formatDate = (dateStr: string) => {
       const d = new Date(dateStr);
@@ -261,6 +324,13 @@ export default function InsightScreen() {
 
   if (!patient) return null;
 
+  // Check if all arrays are empty
+  const hasNoData =
+    (processedData.glucose?.length ?? 0) === 0 &&
+    (processedData.bloodPressure?.length ?? 0) === 0 &&
+    (processedData.bmi?.length ?? 0) === 0 &&
+    (processedData.insulin?.length ?? 0) === 0;
+
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? "#000000" : "#F2F2F7" }}>
       {/* Header */}
@@ -287,10 +357,6 @@ export default function InsightScreen() {
             alignItems: "center",
             borderWidth: isDark ? 0 : 1,
             borderColor: isDark ? "transparent" : "#E5E5EA",
-            shadowColor: "#000",
-            shadowOpacity: isDark ? 0.5 : 0.08,
-            shadowOffset: { width: 0, height: 2 },
-            shadowRadius: 6,
           }}
         >
           <MaterialIcons
@@ -315,50 +381,68 @@ export default function InsightScreen() {
         </Text>
       </View>
 
-      <ScrollView
-        contentContainerStyle={{
-          padding: 16,
-          paddingBottom: 40,
-        }}
-        showsVerticalScrollIndicator={false}
-      >
-        {processedData.glucose && (
-          <InsightChart
-            label="Glucose Level"
-            data={processedData.glucose}
-            color="#EF4444"
-            isDark={isDark}
-            unit="mg/dL"
-          />
-        )}
-        {processedData.bloodPressure && (
-          <InsightChart
-            label="Blood Pressure"
-            data={processedData.bloodPressure}
-            color="#007AFF"
-            isDark={isDark}
-            unit="mm Hg"
-          />
-        )}
-        {processedData.bmi && (
-          <InsightChart
-            label="BMI"
-            data={processedData.bmi}
-            color="#FF9500"
-            isDark={isDark}
-            unit="kg/m²"
-          />
-        )}
-        {processedData.insulin && (
-          <InsightChart
-            label="Insulin Level"
-            data={processedData.insulin}
-            color="#AF52DE"
-            isDark={isDark}
-            unit="μU/mL"
-          />
-        )}
-      </ScrollView>
+      {/* FIXED LOGIC SECTION */}
+      {hasNoData ? (
+        <View
+          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+        >
+          <Text
+            style={{
+              fontSize: 16,
+              fontFamily: "FunnelDisplay-SemiBold",
+              color: isDark ? "#E0E0E0" : "#000",
+            }}
+          >
+            No Data Available
+          </Text>
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={{
+            padding: 16,
+            paddingBottom: 40,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {processedData.glucose && processedData.glucose.length > 0 && (
+            <InsightChart
+              label="Glucose Level"
+              data={processedData.glucose}
+              color="#EF4444"
+              isDark={isDark}
+              unit="mg/dL"
+            />
+          )}
+          {processedData.bloodPressure &&
+            processedData.bloodPressure.length > 0 && (
+              <InsightChart
+                label="Blood Pressure"
+                data={processedData.bloodPressure}
+                color="#007AFF"
+                isDark={isDark}
+                unit="mm Hg"
+              />
+            )}
+          {processedData.bmi && processedData.bmi.length > 0 && (
+            <InsightChart
+              label="BMI"
+              data={processedData.bmi}
+              color="#FF9500"
+              isDark={isDark}
+              unit="kg/m²"
+            />
+          )}
+          {processedData.insulin && processedData.insulin.length > 0 && (
+            <InsightChart
+              label="Insulin Level"
+              data={processedData.insulin}
+              color="#AF52DE"
+              isDark={isDark}
+              unit="μU/mL"
+            />
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }
